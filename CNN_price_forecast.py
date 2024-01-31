@@ -89,7 +89,7 @@ train_start_date_date = train_start_date.date()
 train_end_date_date = train_end_date.date()
 
 # Load and preprocess data
-path = 'C:/Users/groutgauss/Machine_Learning_Projects/CAISO Price Forecast/Deep Learning/'
+path = 'C:/Users/~/~/'
 merged_df = pd.read_csv(path + 'data.csv')
 merged_df = swap_missing_data(merged_df, sf_columns, sj_columns) #Swap SF and SJ weather data for NaN values
 merged_df = interpolate_missing(merged_df) # Interpolate missing values
