@@ -4,10 +4,10 @@ A Deep Learning Locational Marginal Price (LMP) forecast of California electrici
 ## How to use
 - download the data.csv and py scripts; save to local path
 - update path (line 67) to local path where data.csv located
-- run forecast.py script
+- run CNN_price_forecast.py script
 - observe results similar to
 
-![Image1](https://github.com/romilan24/ML-nodal-price-forecast/blob/main/Prediction_vs_Actuals.png)
+![Image1](https://github.com/romilan24/CNN-price-forecast/blob/main/Prediction_vs_Actuals_CNN_price.png)
 
 ## Observations
 - We chose a relatively mild Load day (October in California is shoulder month) for prediction
