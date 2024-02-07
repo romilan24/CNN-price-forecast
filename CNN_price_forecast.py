@@ -1,141 +1,72 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-#from torch.utils.data import DataLoader, TensorDataset
-#from torch.cuda import is_available
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
-from preprocess import rename_columns, swap_missing_data, interpolate_missing, split_data, date_and_hour, calculate_mape, add_holiday_variable, create_lagged_variables
-
-# Import necessary libraries
 import tensorflow as tf
 import tensorflow_addons as tfa
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
-from sklearn.metrics import mean_absolute_percentage_error
-
 from sklearn.metrics import mean_absolute_error
-from keras import Sequential
-from keras import layers
-from keras.models import Model
-from keras.layers import LSTM, BatchNormalization, Dropout, Dense, Flatten, Conv1D
-from keras.layers import MaxPooling1D, GRU, Input,Masking, Concatenate, dot
-from keras.optimizers import Adam, SGD
-from keras.losses import MeanAbsoluteError
-from keras.metrics import RootMeanSquaredError
-from keras.callbacks import EarlyStopping
-from keras.callbacks import LearningRateScheduler
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Conv1D, Flatten, Dense, Dropout
+from preprocess import rename_columns, swap_missing_data, interpolate_missing, add_holiday_variable, windowing
 
-#rename column headers
+# Load and preprocess data
+path = 'C:/Users/groutgauss/Machine_Learning_Projects/CAISO Price Forecast/Deep Learning/'
+merged_df = pd.read_csv(path + 'data.csv')
+
+# Rename column headers
 column_mapping = {
     'Datetime': 'datetime',
     'Current demand': 'caiso_load_actuals',
     'KCASANFR698_Temperature': 'SF_temp',
-    'KCASANFR698_Dew_Point':'SF_dew',
-    'KCASANFR698_Humidity':'SF_humidity',
-    'KCASANFR698_Speed':'SF_windspeed',
-    'KCASANFR698_Gust':'SF_windgust',
-    'KCASANFR698_Pressure':'SF_pressure',
+    'KCASANFR698_Dew_Point': 'SF_dew',
+    'KCASANFR698_Humidity': 'SF_humidity',
+    'KCASANFR698_Speed': 'SF_windspeed',
+    'KCASANFR698_Gust': 'SF_windgust',
+    'KCASANFR698_Pressure': 'SF_pressure',
     'KCASANJO17_Temperature': 'SJ_temp',
-    'KCASANJO17_Dew_Point':'SJ_dew',
-    'KCASANJO17_Humidity':'SJ_humidity',
-    'KCASANJO17_Speed':'SJ_windspeed',
-    'KCASANJO17_Gust':'SJ_windgust',
-    'KCASANJO17_Pressure':'SJ_pressure',
+    'KCASANJO17_Dew_Point': 'SJ_dew',
+    'KCASANJO17_Humidity': 'SJ_humidity',
+    'KCASANJO17_Speed': 'SJ_windspeed',
+    'KCASANJO17_Gust': 'SJ_windgust',
+    'KCASANJO17_Pressure': 'SJ_pressure',
     'KCABAKER271_Temperature': 'BAKE_temp',
-    'KCABAKER271_Humidity':'BAKE_humidity',
-    'KCABAKER271_Speed':'BAKE_windspeed',
-    'KCABAKER271_Pressure':'BAKE_pressure',
+    'KCABAKER271_Humidity': 'BAKE_humidity',
+    'KCABAKER271_Speed': 'BAKE_windspeed',
+    'KCABAKER271_Pressure': 'BAKE_pressure',
     'KCAELSEG23_Temperature': 'EL_temp',
-    'KCAELSEG23_Dew_Point':'EL_dew',
-    'KCAELSEG23_Humidity':'EL_humidity',
-    'KCAELSEG23_Speed':'EL_windspeed',
-    'KCAELSEG23_Gust':'EL_windgust',
-    'KCAELSEG23_Pressure':'EL_pressure',
+    'KCAELSEG23_Dew_Point': 'EL_dew',
+    'KCAELSEG23_Humidity': 'EL_humidity',
+    'KCAELSEG23_Speed': 'EL_windspeed',
+    'KCAELSEG23_Gust': 'EL_windgust',
+    'KCAELSEG23_Pressure': 'EL_pressure',
     'KCARIVER117_Temperature': 'RIV_temp',
-    'KCARIVER117_Dew_Point':'RIV_dew',
-    'KCARIVER117_Humidity':'RIV_humidity',
-    'KCARIVER117_Speed':'RIV_windspeed',
-    'KCARIVER117_Gust':'RIV_windgust',
-    'KCARIVER117_Pressure':'RIV_pressure'
+    'KCARIVER117_Dew_Point': 'RIV_dew',
+    'KCARIVER117_Humidity': 'RIV_humidity',
+    'KCARIVER117_Speed': 'RIV_windspeed',
+    'KCARIVER117_Gust': 'RIV_windgust',
+    'KCARIVER117_Pressure': 'RIV_pressure'
 }
 
-# Columns for swap missing NaN data between SF and SJ
-sf_columns = [
-    'KCASANFR698_Temperature', 'KCASANFR698_Dew_Point', 'KCASANFR698_Humidity',
-    'KCASANFR698_Speed', 'KCASANFR698_Gust', 'KCASANFR698_Pressure'
-]
+# Columns for swapping missing NaN data between SF and SJ
+sf_columns = ['SF_temp', 'SF_dew', 'SF_humidity', 'SF_windspeed', 'SF_windgust', 'SF_pressure']
+sj_columns = ['SJ_temp', 'SJ_dew', 'SJ_humidity', 'SJ_windspeed', 'SJ_windgust', 'SJ_pressure']
 
-sj_columns = [
-    'KCASANJO17_Temperature', 'KCASANJO17_Dew_Point', 'KCASANJO17_Humidity',
-    'KCASANJO17_Speed', 'KCASANJO17_Gust', 'KCASANJO17_Pressure'
-]
-
-
-# Specify the date ranges
-train_start_date = pd.to_datetime('2021-01-02')
-train_end_date = pd.to_datetime('2023-10-03')
-predict_start_date = train_end_date + pd.Timedelta(days=1)
-predict_end_date = predict_start_date + pd.Timedelta(hours=24)
-
-# Assuming you want date objects
-train_start_date_date = train_start_date.date()
-train_end_date_date = train_end_date.date()
-
-# Load and preprocess data
-path = 'C:/Users/~/~/'
-merged_df = pd.read_csv(path + 'data.csv')
-merged_df = swap_missing_data(merged_df, sf_columns, sj_columns) #Swap SF and SJ weather data for NaN values
-merged_df = interpolate_missing(merged_df) # Interpolate missing values
-data = rename_columns(merged_df, column_mapping) #renames the column headers
-#date_and_hour(data)
-data = add_holiday_variable(data, 'datetime', train_start_date, train_end_date) # Add holiday variable
-#data = create_lagged_variables(data, 'TH_SP15_GEN-APND', lag_range=7) # Create lagged variables
-
-#filter train/test data for start/end dates
-df = data[(data['datetime'] >= train_start_date) & (data['datetime'] <= train_end_date + pd.Timedelta(days=1))]
+# Data preprocessing steps
+data = rename_columns(merged_df, column_mapping)
+data = swap_missing_data(data, sf_columns, sj_columns)
+data = interpolate_missing(data)
+data = add_holiday_variable(data, 'datetime', '2021-01-02', '2023-10-03')
 
 # Split data into features and target
-X = df.drop(['datetime','TH_SP15_GEN-APND'], axis=1).values
-y = df['TH_SP15_GEN-APND'].values
+X = data.drop(['datetime', 'TH_SP15_GEN-APND'], axis=1).values
+y = data['TH_SP15_GEN-APND'].values
 
-#Transform prep
-def apply_PCA(X_input, cum_variance, if_apply):
-    
-    if if_apply:
-    
-        pca = PCA(n_components = cum_variance)
-        # make pipeline to first standardize then apply PCA on data
-        scaler_pca = make_pipeline(MinMaxScaler(), pca)
-        X_pca = scaler_pca.fit(X_input).transform(X_input)
-
-        return X_pca
-    
-    else:
-        
-        return np.array(X_input)
-
-params_pca = {'cum_variance' : 0.8, 'if_apply' : True }
-X_pca = apply_PCA(X, **params_pca)
-X_pca.shape
-
-
-def windowing(X_input,y_input, history_size):
-    
-    data = []
-    labels = []
-    for i in range(history_size, len(y_input)):
-        data.append(X_input[i - history_size : i, :])
-        labels.append(y_input[i])
-        
-    return np.array(data), np.array(labels).reshape(-1,1)
-
+# Apply PCA
+pca = PCA(n_components=0.8)
+scaler_pca = StandardScaler()
+X_pca = pca.fit_transform(scaler_pca.fit_transform(X))
 
 train_cutoff = int(0.8*X_pca.shape[0])
 val_cutoff   = int(0.9*X_pca.shape[0])
@@ -144,48 +75,33 @@ scaler_y = MinMaxScaler()
 scaler_y.fit(y[:train_cutoff].reshape(-1,1))
 y_norm = scaler_y.transform(y.reshape(-1,1))
 
-hist_size= 24
-data_norm = np.concatenate((X_pca,y_norm), axis = 1)
+# Windowing for sequence data
+hist_size = 24
+X_windowed, y_windowed = windowing(X_pca, y, hist_size)
 
-X_train, y_train = windowing(data_norm[:train_cutoff,:],data_norm[:train_cutoff,-1], hist_size)
-X_val, y_val     = windowing(data_norm[train_cutoff :val_cutoff,:],data_norm[train_cutoff:val_cutoff,-1], hist_size)
-X_test, y_test   = windowing(data_norm[val_cutoff :,:],data_norm[val_cutoff:,-1], hist_size)
+# Train-validation-test split
+X_train, X_val_test, y_train, y_val_test = train_test_split(X_windowed, y_windowed)
+X_val, X_test, y_val, y_test = train_test_split(X_val_test, y_val_test, test_size=0.5, random_state=42)
 
-#Training
-def base_model_cnn():
-    
-    model = Sequential()
-    model.add(Conv1D(filters=32, kernel_size=3, activation='relu', input_shape=X_train.shape[-2:]))
-    model.add(Flatten())
-    model.add(Dense(128, activation='relu'))
-    model.add(Dropout(0.1))
-    model.add(Dense(1))
-    
-    return model
+# Define the CNN model
+model = Sequential([
+    Conv1D(filters=32, kernel_size=3, activation='relu', input_shape=X_train.shape[-2:]),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.1),
+    Dense(1)
+])
 
-epoch = 125
-batch_size = 64
-steps_per_epoch = len(X_train) // batch_size
-cyclic_lr = tfa.optimizers.CyclicalLearningRate(initial_learning_rate=1e-04,
-                                                maximal_learning_rate=1e-02,
-                                                scale_fn=lambda x: 1/(2**(x-1)),
-                                                step_size=6 * steps_per_epoch)
-callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=8)
-optimizer = Adam(learning_rate=cyclic_lr, amsgrad=True)
+# Compile the model
+model.compile(optimizer='adam', loss='mean_absolute_error')
 
-cnn_model = base_model_cnn()
-cnn_model.compile(optimizer = optimizer, loss = 'mean_absolute_error')
-cnn_model.summary()
+# Train the model
+history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=125, batch_size=64, verbose=1)
 
-history = cnn_model.fit(X_train, y_train, validation_data = (X_val, y_val), epochs =epoch, 
-                   batch_size = batch_size, callbacks=[callback])
-
-
-##Prediction##
-y_pred = cnn_model.predict(X_test)
+# Evaluate the model
+y_pred = model.predict(X_test)
 y_pred_actual = scaler_y.inverse_transform(y_pred.reshape(-1,1))
 y_test_inv = scaler_y.inverse_transform(y_test)
-
 
 def plot_results(y_pred_actual, y_test_inv, history, model_name):
     fig, ax = plt.subplots(2, 1, figsize=(15, 9))
@@ -216,4 +132,5 @@ print(f'LSTM MAE for test set : {round(mean_absolute_error(y_pred,y_test),3)}')
 print('---------------------------------------------------')
 y_pred_actual = scaler_y.inverse_transform(y_pred)
 print('')
-plot_results(y_pred_actual, y_test_inv, history,'CNN')
+plot_results(y_pred_actual, y_test_inv, history,'CNN')                                                   
+                                                            
